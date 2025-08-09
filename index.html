@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>自我介紹履歷｜姜楷成</title>
+<meta name="description" content="結構化且互動的個人履歷，適合HR與技術主管快速了解技能與經歷。">
+<style>
+  :root{
+    --bg:#ffffff; --fg:#111827; --muted:#6b7280; --accent:#2563eb; --chip:#eef2ff; --line:#e5e7eb;
+    --shadow: 0 6px 20px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0b0f14; --fg:#e5e7eb; --muted:#9ca3af; --accent:#60a5fa; --chip:#0f172a; --line:#1f2937; --shadow: 0 6px 20px rgba(0,0,0,.4); }
+  }
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{ margin:0; background:var(--bg); color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans TC","PingFang TC","Hiragino Sans","Microsoft JhengHei",Arial,sans-serif;
+    line-height:1.6; }
+  a{ color:var(--accent); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  .wrap{ max-width:1000px; margin:0 auto; padding:28px 18px 84px; }
+  header{
+    display:grid; grid-template-columns: 1fr auto; gap:18px; align-items:center;
+    padding:12px 0 16px; border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:10;
+    transition: box-shadow .2s ease;
+  }
+  header.scrolled{ box-shadow: var(--shadow); }
+  .name{ font-size:clamp(22px, 3vw, 34px); font-weight:800; letter-spacing:0.02em; }
+  .role{ color:var(--muted); font-weight:600; font-size:clamp(14px, 1.8vw, 16px); }
+  .contact{ display:flex; flex-wrap:wrap; gap:10px 12px; justify-content:flex-end; }
+  .chip{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+    background:var(--chip); border:1px solid var(--line); font-size:14px; line-height:1.4;
+  }
+  .sec{ padding:26px 0; border-bottom:1px solid var(--line); }
+  .sec h2{ margin:0 0 12px; font-size:18px; text-transform:uppercase; letter-spacing:0.12em; font-weight:800; }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  .item{ padding:14px; border:1px solid var(--line); border-radius:12px; background:transparent; }
+  .item h3{ margin:0 0 4px; font-size:17px; }
+  .meta{ color:var(--muted); font-size:14px; }
+  ul{ margin:8px 0 0 18px; padding:0; }
+  @media (max-width: 720px){
+    .grid-2{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header id="top">
+      <div>
+        <div class="name">姜楷成</div>
+        <div class="role">機器學習／AI／軟體工程</div>
+      </div>
+      <div class="contact">
+        <span class="chip">📧 <a href="mailto:vip.johnson880017@gmail.com">vip.johnson880017@gmail.com</a></span>
+        <span class="chip">📱 0911‑590‑572</span>
+        <span class="chip">📍 台灣（新竹／基隆）</span>
+        <span class="chip">🔗 <a href="https://www.cake.me/portfolios/4b9184" target="_blank" rel="noopener">作品集</a></span>
+      </div>
+    </header>
+
+    <section class="sec">
+      <h2>工作經歷</h2>
+      <div class="grid-2">
+        <div class="item">
+          <h3>研究助理｜國立臺灣海洋大學</h3>
+          <div class="meta">2023/09 – 2025/08｜基隆｜專題：海鱸魚精準餵食與環境監測</div>
+          <ul>
+            <li><b>技術實作</b>：規劃與維運 GCP 雲端架構；開發 ESP32 / Raspberry Pi 嵌入式系統連網舊型養殖設備，支援遠端控制與自動化。</li>
+            <li><b>技術文件與專利</b>：撰寫「智慧餵食強度辨識」發明專利技術文件（系統架構、演算法）。</li>
+          </ul>
+        </div>
+        <div class="item">
+          <h3>研究助理｜長榮大學</h3>
+          <div class="meta">2020/05 – 2020/08｜台南｜Unity3D / C#</div>
+          <ul>
+            <li><b>技術實作</b>：使用 Unity3D 與 C# 開發應用程式。</li>
+            <li><b>技術文件與專利</b>：協助研究報告與專案文件撰寫。</li>
+          </ul>
+        </div>
+        <div class="item">
+          <h3>教學助教（TA）｜國立臺灣海洋大學</h3>
+          <div class="meta">2023 – 2025</div>
+          <ul>
+            <li><b>系統維運與支援</b>：課程技術協助與作業指導（Python、機器學習）。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>代表專案</h2>
+      <div class="grid-2">
+        <div class="item">
+          <h3>水花辨識投喂系統</h3>
+          <ul>
+            <li><b>技術實作</b>：開發嵌入式系統將舊料桶連網，整合影像串流與雲端分析。</li>
+            <li><b>技術文件與專利</b>：撰寫「智慧餵食強度辨識」專利技術文件。</li>
+          </ul>
+        </div>
+        <div class="item">
+          <h3>碩士論文：Active Learning for Few-Shot Semantic Segmentation</h3>
+          <ul>
+            <li><b>技術實作</b>：設計基於 KL 散度的樣本選擇策略與特徵萃取流程；完成 PyTorch 模型訓練與評估（PASCAL-5i、COCO-20i）。</li>
+            <li><b>研究與驗證成果</b>：降低標註成本並提升模型穩定度。</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>學歷</h2>
+      <div class="item">
+        <h3>國立臺灣海洋大學｜資訊工程學系 碩士</h3>
+        <div class="meta">2023/08 – 2025/08</div>
+      </div>
+      <div class="item">
+        <h3>逢甲大學｜應用數學學系 學士（輔修資工）</h3>
+        <div class="meta">2020/09 – 2022/07</div>
+      </div>
+    </section>
+
+    <section class="sec">
+      <h2>核心技能</h2>
+      <div class="skills">
+        <span class="chip">Python</span>
+        <span class="chip">PyTorch</span>
+        <span class="chip">Machine Learning</span>
+        <span class="chip">Linux</span>
+        <span class="chip">GCP</span>
+        <span class="chip">MySQL</span>
+        <span class="chip">C / C#</span>
+        <span class="chip">Unity3D</span>
+        <span class="chip">ESP32</span>
+        <span class="chip">Raspberry Pi</span>
+        <span class="chip">IoT 整合</span>
+        <span class="chip">Git</span>
+      </div>
+    </section>
+
+    <div class="footer">© 2025 姜楷成 — 單頁履歷（列印友善 / 支援深色模式 / 手機優化 / 結構化）</div>
+  </div>
+</body>
+</html>
