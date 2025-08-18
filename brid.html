@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>2D 鳥群（Boids）＋障礙物 單檔示範</title>
+<style>
+  :root { --bg:#0b0f14; --panel:#121821; --text:#e8eef7; --muted:#9db0c9; --accent:#4aa8ff; --accent2:#76e3a1; }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Noto Sans TC","Helvetica Neue",Arial}
+  #wrap{display:grid;grid-template-rows:auto 1fr auto;height:100%}
+  header{padding:12px 16px;background:linear-gradient(180deg,#0f1520 0%,#0a0f16 100%);border-bottom:1px solid #1b2533;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;letter-spacing:.5px;color:#bcd2ee}
+  .controls{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end}
+  .ctrl{display:flex;flex-direction:column;gap:6px;background:var(--panel);border:1px solid #1c2533;padding:10px 12px;border-radius:10px;min-width:160px}
+  .ctrl label{font-size:12px;color:var(--muted)}
+  .ctrl input[type="number"], .ctrl input[type="range"], .ctrl select{width:100%;background:#0e141c;color:var(--text);border:1px solid #2a374a;border-radius:8px;padding:8px;outline:none}
+  .btns{display:flex;gap:8px;align-items:center}
+  button{background:linear-gradient(180deg,#1a2736 0%,#121b26 100%);border:1px solid #2a3a50;color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
+  button:hover{border-color:#3b5373}
+  button.primary{background:linear-gradient(180deg,#1560d1 0%,#0e4aa6 100%);border-color:#0e4aa6}
+  button.warn{background:linear-gradient(180deg,#2e3947 0%,#1c2632 100%);border-color:#3b4757}
+  details{background:var(--panel);border:1px solid #1c2533;border-radius:10px;padding:8px 12px;margin-left:8px}
+  details summary{cursor:pointer;color:var(--accent);padding:4px 0}
+  #stats{margin-left:auto;color:#9db0c9;font-variant-numeric:tabular-nums}
+  canvas{display:block;width:100%;height:100%}
+  footer{padding:8px 14px;color:#8ea4bf;border-top:1px solid #1b2533;font-size:12px}
+  .row{display:flex;flex-wrap:wrap;gap:12px}
+  .hint{font-size:12px;color:#89a1be}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <header>
+    <h1>2D 鳥群（Boids）＋ 障礙物</h1>
+
+    <div class="controls">
+      <div class="ctrl">
+        <label for="boidCount">鳥群數量（個體數）</label>
+        <input id="boidCount" type="number" min="10" max="2000" step="10" value="300" />
+      </div>
+      <div class="ctrl">
+        <label for="groupCount">群數</label>
+        <input id="groupCount" type="number" min="1" max="10" step="1" value="3" />
+      </div>
+      <div class="btns">
+        <button id="apply" class="primary">套用設定</button>
+        <button id="toggle">暫停</button>
+        <button id="reset" class="warn">重設</button>
+        <button id="randomize">隨機分組</button>
+        <button id="trail">軌跡：關</button>
+      </div>
+
+      <details>
+        <summary>進階：行為參數</summary>
+        <div class="row">
+          <div class="ctrl"><label>感知半徑 <span id="radVal">50</span></label><input id="radius" type="range" min="20" max="120" value="50"></div>
+          <div class="ctrl"><label>最大速度 <span id="spdVal">2.0</span></label><input id="maxSpeed" type="range" min="1" max="5" step="0.1" value="2"></div>
+          <div class="ctrl"><label>最大轉向 <span id="forceVal">0.05</span></label><input id="maxForce" type="range" min="0.01" max="0.2" step="0.01" value="0.05"></div>
+          <div class="ctrl"><label>分離權重 <span id="sepVal">1.5</span></label><input id="wSeparation" type="range" min="0" max="3" step="0.1" value="1.5"></div>
+          <div class="ctrl"><label>對齊權重 <span id="aliVal">1.0</span></label><input id="wAlignment" type="range" min="0" max="3" step="0.1" value="1.0"></div>
+          <div class="ctrl"><label>聚合權重 <span id="cohVal">0.8</span></label><input id="wCohesion" type="range" min="0" max="3" step="0.1" value="0.8"></div>
+        </div>
+      </details>
+
+      <details>
+        <summary>進階：障礙物</summary>
+        <div class="row">
+          <div class="ctrl">
+            <label>障礙形狀</label>
+            <select id="shape">
+              <option value="circle">圓形</option>
+              <option value="box">方形</option>
+            </select>
+          </div>
+          <div class="ctrl">
+            <label>尺寸（半徑 / 半寬） <span id="sizeVal">40</span></label>
+            <input id="obsSize" type="range" min="15" max="120" value="40" />
+          </div>
+          <div class="ctrl">
+            <label>方形半高 <span id="sizeYVal">40</span></label>
+            <input id="obsSizeY" type="range" min="15" max="120" value="40" />
+          </div>
+          <div class="ctrl">
+            <label>避障距（膨脹） <span id="inflateVal">18</span></label>
+            <input id="inflate" type="range" min="8" max="50" value="18" />
+          </div>
+          <div class="ctrl">
+            <label>避障權重 <span id="avoidVal">1.2</span></label>
+            <input id="wAvoid" type="range" min="0" max="3" step="0.1" value="1.2" />
+          </div>
+        </div>
+        <div class="row">
+          <button id="clearObs" class="warn">清空障礙物</button>
+          <div class="hint">在畫布上點擊放置。按住 <b>Shift</b> 再點擊可刪除最近障礙。</div>
+        </div>
+      </details>
+
+      <div id="stats">FPS: --｜個體: --｜群: --｜障礙: 0</div>
+    </div>
+  </header>
+
+  <canvas id="sim"></canvas>
+
+  <footer>
+    點擊畫布放置障礙物（圓/方）。Boids 會以斥力閃避（可調膨脹距與避障權重）。Shift+點擊刪除最近障礙。
+  </footer>
+</div>
+
+<script>
+(() => {
+  // ===== Utility =====
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const rand = (a=0, b=1) => a + Math.random() * (b - a);
+  const hsl = (h,s=65,l=55) => `hsl(${h}deg ${s}% ${l}%)`;
+  const abs = Math.abs;
+
+  function makeVec(x=0,y=0){ return {x,y}; }
+  function add(a,b){ a.x+=b.x; a.y+=b.y; return a; }
+  function sub(a,b){ a.x-=b.x; a.y-=b.y; return a; }
+  function mul(a,s){ a.x*=s; a.y*=s; return a; }
+  function set(a,x,y){ a.x=x; a.y=y; return a; }
+  function len(a){ return Math.hypot(a.x, a.y); }
+  function normalize(a){ const L = len(a)||1e-6; a.x/=L; a.y/=L; return a; }
+  function limit(a, max){ const L = len(a); if (L>max){ a.x=a.x/L*max; a.y=a.y/L*max; } return a; }
+  function copy(a){ return {x:a.x, y:a.y}; }
+
+  // Wrap (toroidal)
+  function wrapPos(p, w, h){
+    if (p.x < 0) p.x += w; else if (p.x >= w) p.x -= w;
+    if (p.y < 0) p.y += h; else if (p.y >= h) p.y -= h;
+  }
+
+  // ===== Canvas & DPI =====
+  const canvas = document.getElementById('sim');
+  const ctx = canvas.getContext('2d', { alpha:false });
+  let DPR=1;
+  function resize(){
+    DPR = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(canvas.clientWidth * DPR);
+    canvas.height = Math.floor(canvas.clientHeight * DPR);
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+
+  // ===== Controls =====
+  const $ = id => document.getElementById(id);
+  const elCount = $('boidCount');
+  const elGroups = $('groupCount');
+  const elApply = $('apply');
+  const elToggle = $('toggle');
+  const elReset = $('reset');
+  const elRandom = $('randomize');
+  const elTrail = $('trail');
+  const elStats = $('stats');
+
+  const elRadius = $('radius');
+  const elMaxSpeed = $('maxSpeed');
+  const elMaxForce = $('maxForce');
+  const elWsep = $('wSeparation');
+  const elWali = $('wAlignment');
+  const elWcoh = $('wCohesion');
+
+  const elShape = $('shape');
+  const elObsSize = $('obsSize');
+  const elObsSizeY = $('obsSizeY');
+  const elInflate = $('inflate');
+  const elWAvoid = $('wAvoid');
+  const elClearObs = $('clearObs');
+
+  const label = (id, fmt=v=>v)=>{ const e=$(id); return v=>{ e.textContent = fmt(v); } };
+  const setRadVal = label('radVal'), setSpdVal = label('spdVal',v=>(+v).toFixed(1)), setForceVal = label('forceVal',v=>(+v).toFixed(2));
+  const setSepVal = label('sepVal',v=>(+v).toFixed(1)), setAliVal = label('aliVal',v=>(+v).toFixed(1)), setCohVal = label('cohVal',v=>(+v).toFixed(1));
+  const setSizeVal = label('sizeVal'), setSizeYVal = label('sizeYVal'), setInflateVal = label('inflateVal'), setAvoidVal = label('avoidVal', v=>(+v).toFixed(1));
+
+  function syncLabels(){
+    setRadVal(elRadius.value); setSpdVal(elMaxSpeed.value); setForceVal(elMaxForce.value);
+    setSepVal(elWsep.value); setAliVal(elWali.value); setCohVal(elWcoh.value);
+    setSizeVal(elObsSize.value); setSizeYVal(elObsSizeY.value); setInflateVal(elInflate.value); setAvoidVal(elWAvoid.value);
+  }
+  [elRadius, elMaxSpeed, elMaxForce, elWsep, elWali, elWcoh, elObsSize, elObsSizeY, elInflate, elWAvoid].forEach(i=>i.addEventListener('input', syncLabels));
+  syncLabels();
+
+  // ===== Boids State =====
+  let boids = [];
+  let colors = [];
+  let running = true;
+  let trails = false;
+
+  const params = {
+    radius: 50, maxSpeed: 2.0, maxForce: 0.05,
+    wSeparation: 1.5, wAlignment: 1.0, wCohesion: 0.8,
+    // obstacles
+    inflate: 18, wAvoid: 1.2,
+  };
+
+  // Obstacles [{type:'circle', x,y, rx}, {type:'box', x,y, hx, hy}]
+  const obstacles = [];
+
+  // Spatial hash for boids
+  const hash = {
+    cell: 60, map:new Map(),
+    key(cx,cy){ return cx+','+cy; },
+    clear(){ this.map.clear(); },
+    insert(i,x,y){ const cx=Math.floor(x/this.cell), cy=Math.floor(y/this.cell);
+      const k=this.key(cx,cy); let arr=this.map.get(k); if(!arr) this.map.set(k, arr=[]); arr.push(i); boids[i]._cell={cx,cy}; },
+    neighbors(x,y){ const cx=Math.floor(x/this.cell), cy=Math.floor(y/this.cell), res=[];
+      for(let j=-1;j<=1;j++) for(let i=-1;i<=1;i++){ const arr=this.map.get(this.key(cx+i,cy+j)); if(arr) res.push(arr); } return res; }
+  };
+
+  function makeColors(G){
+    colors=[]; for(let i=0;i<G;i++){ const hue=Math.round((360*i)/Math.max(1,G)); colors.push(hsl(hue,70,60)); }
+  }
+
+  function createBoids(count, groupCount){
+    boids = new Array(count);
+    makeColors(groupCount);
+    for(let i=0;i<count;i++){
+      const group = Math.floor(rand(0, groupCount));
+      const b = {
+        p: makeVec(rand(0, canvas.clientWidth), rand(0, canvas.clientHeight)),
+        v: makeVec(rand(-1,1), rand(-1,1)),
+        a: makeVec(0,0),
+        group
+      };
+      normalize(b.v); mul(b.v, params.maxSpeed*rand(0.5,1));
+      boids[i] = b;
+    }
+  }
+
+  function randomizeGroups(){
+    const G = clamp(parseInt(elGroups.value||'1'),1,10);
+    makeColors(G);
+    for (const b of boids) b.group = Math.floor(rand(0,G));
+  }
+
+  function readParamsFromUI(){
+    params.radius   = +elRadius.value;
+    params.maxSpeed = +elMaxSpeed.value;
+    params.maxForce = +elMaxForce.value;
+    params.wSeparation = +elWsep.value;
+    params.wAlignment  = +elWali.value;
+    params.wCohesion   = +elWcoh.value;
+    params.inflate     = +elInflate.value;
+    params.wAvoid      = +elWAvoid.value;
+    hash.cell = Math.max(24, Math.floor(params.radius*1.2));
+  }
+
+  function applySettings(){
+    const count = clamp(parseInt(elCount.value||'300',10),10,2000);
+    const groups = clamp(parseInt(elGroups.value||'3',10),1,10);
+    elCount.value = String(count); elGroups.value = String(groups);
+    readParamsFromUI(); createBoids(count, groups);
+  }
+  function resetSim(){ applySettings(); clearScreen(true); }
+
+  // ===== Obstacles: SDF & placement =====
+  function sdfCircle(px,py, cx,cy, r){ return Math.hypot(px-cx, py-cy) - r; }
+  // Axis-aligned box with half extents (hx, hy)
+  function sdfBox(px,py, cx,cy, hx,hy){
+    const qx = abs(px-cx) - hx, qy = abs(py-cy) - hy;
+    const ax = Math.max(qx, 0), ay = Math.max(qy, 0);
+    const outside = Math.hypot(ax, ay);
+    const inside = Math.min(Math.max(qx,qy), 0);
+    return outside + inside; // negative = inside
+  }
+  function gradApprox(sdfFn, x,y){ // finite difference gradient (normalized)
+    const e=1.0; const dx = sdfFn(x+e,y) - sdfFn(x-e,y); const dy = sdfFn(x,y+e) - sdfFn(x,y-e);
+    const g = makeVec(dx,dy); if (g.x===0 && g.y===0) return makeVec(0,0); return normalize(g);
+  }
+
+  // return {dist, normal}
+  function sdfObstacle(p){
+    const inflate = params.inflate;
+    let best = {dist: Number.POSITIVE_INFINITY, n: makeVec(0,0)};
+    for (const o of obstacles){
+      if (o.type==='circle'){
+        const sdf = (x,y)=>sdfCircle(x,y,o.x,o.y,o.r+inflate);
+        const d = sdf(p.x,p.y);
+        if (d < best.dist){ best.dist = d; best.n = gradApprox(sdf, p.x, p.y); }
+      } else if (o.type==='box'){
+        const sdf = (x,y)=>sdfBox(x,y,o.x,o.y,o.hx+inflate, o.hy+inflate);
+        const d = sdf(p.x,p.y);
+        if (d < best.dist){ best.dist = d; best.n = gradApprox(sdf, p.x, p.y); }
+      }
+    }
+    return best;
+  }
+
+  // Mouse interactions
+  const mouse = {x:0,y:0};
+  canvas.addEventListener('mousemove', e=>{
+    const rect = canvas.getBoundingClientRect();
+    mouse.x = (e.clientX - rect.left);
+    mouse.y = (e.clientY - rect.top);
+  });
+
+  canvas.addEventListener('contextmenu', e=>e.preventDefault());
+  canvas.addEventListener('mousedown', e=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left);
+    const y = (e.clientY - rect.top);
+    const shape = elShape.value;
+    if (e.shiftKey){ // delete nearest
+      if (obstacles.length===0) return;
+      let bi=-1, bd=1e9;
+      for (let i=0;i<obstacles.length;i++){
+        const o = obstacles[i];
+        const ox = o.x, oy = o.y;
+        const d = (x-ox)*(x-ox)+(y-oy)*(y-oy);
+        if (d<bd){ bd=d; bi=i; }
+      }
+      if (bi>=0) obstacles.splice(bi,1);
+      return;
+    }
+    if (shape==='circle'){
+      obstacles.push({type:'circle', x, y, r:+elObsSize.value});
+    } else if (shape==='box'){
+      obstacles.push({type:'box', x, y, hx:+elObsSize.value, hy:+elObsSizeY.value});
+    }
+  });
+
+  elClearObs.addEventListener('click', ()=>{ obstacles.length = 0; });
+
+  // ===== Simulation =====
+  function buildHash(){ hash.clear(); for(let i=0;i<boids.length;i++){ const b=boids[i]; hash.insert(i,b.p.x,b.p.y);} }
+
+  function steerTowards(b, desired){
+    const steer = sub(copy(desired), b.v);
+    return limit(steer, params.maxForce);
+  }
+
+  function update(){
+    readParamsFromUI();
+    buildHash();
+
+    const R = params.radius, R2 = R*R;
+
+    for (let idx=0; idx<boids.length; idx++){
+      const b = boids[idx], pos=b.p, vel=b.v;
+
+      let steerSep = makeVec(0,0), steerAli = makeVec(0,0), steerCoh = makeVec(0,0);
+      let cntAli=0, cntCoh=0;
+
+      const neighborLists = hash.neighbors(pos.x, pos.y);
+      for (const arr of neighborLists){
+        for (const j of arr){
+          if (j===idx) continue;
+          const o = boids[j];
+          const dx=o.p.x-pos.x, dy=o.p.y-pos.y;
+          const d2 = dx*dx + dy*dy;
+          if (d2>R2 || d2===0) continue;
+
+          // 分離（所有個體）
+          const inv = 1/Math.sqrt(d2);
+          const away = {x:-dx*inv, y:-dy*inv};
+          const strength = 1 - (Math.sqrt(d2)/R);
+          steerSep.x += away.x*strength; steerSep.y += away.y*strength;
+
+          // 同群 對齊/聚合
+          if (o.group===b.group){
+            steerAli.x += o.v.x; steerAli.y += o.v.y; cntAli++;
+            steerCoh.x += o.p.x; steerCoh.y += o.p.y; cntCoh++;
+          }
+        }
+      }
+      if (cntAli>0){
+        steerAli.x/=cntAli; steerAli.y/=cntAli; normalize(steerAli); mul(steerAli, params.maxSpeed);
+        steerAli = steerTowards(b, steerAli);
+      }
+      if (cntCoh>0){
+        steerCoh.x = (steerCoh.x/cntCoh) - pos.x; steerCoh.y = (steerCoh.y/cntCoh) - pos.y;
+        if (steerCoh.x!==0 || steerCoh.y!==0){ normalize(steerCoh); mul(steerCoh, params.maxSpeed); steerCoh = steerTowards(b, steerCoh); }
+      }
+      if (steerSep.x!==0 || steerSep.y!==0){ normalize(steerSep); mul(steerSep, params.maxSpeed); steerSep = steerTowards(b, steerSep); }
+
+      // ---- Obstacle avoidance (SDF-based) ----
+      let avoid = makeVec(0,0);
+      if (obstacles.length){
+        // 預測前向位置，能更早避開
+        const look = copy(vel); normalize(look); mul(look, Math.max(30, params.radius));
+        const probe = {x: pos.x + look.x, y: pos.y + look.y};
+
+        const best = sdfObstacle(probe);
+        if (best.dist < 0){ // inside inflated shape → 強力推開
+          avoid = copy(best.n); // 指向外部
+          mul(avoid, params.maxSpeed);
+          avoid = steerTowards(b, avoid);
+          // 進一步加強
+          const k = clamp((-best.dist)/(params.inflate+1), 0, 2);
+          mul(avoid, 1.0 + k);
+        } else if (best.dist < params.inflate*1.5){ // 接近邊界 → 軟推開
+          avoid = copy(best.n);
+          mul(avoid, params.maxSpeed);
+          avoid = steerTowards(b, avoid);
+          const k = clamp(1.0 - best.dist/(params.inflate*1.5), 0, 1);
+          mul(avoid, 0.5*k);
+        }
+      }
+
+      // 合成加速度
+      const acc = b.a;
+      acc.x = steerSep.x*params.wSeparation + steerAli.x*params.wAlignment + steerCoh.x*params.wCohesion + avoid.x*params.wAvoid;
+      acc.y = steerSep.y*params.wSeparation + steerAli.y*params.wAlignment + steerCoh.y*params.wCohesion + avoid.y*params.wAvoid;
+
+      // 數值整步
+      vel.x += acc.x; vel.y += acc.y; limit(vel, params.maxSpeed);
+      pos.x += vel.x; pos.y += vel.y;
+      wrapPos(pos, canvas.clientWidth, canvas.clientHeight);
+    }
+  }
+
+  // ===== Rendering =====
+  function clearScreen(hard=false){
+    if (trails && !hard) ctx.fillStyle = 'rgba(11,15,20,0.15)';
+    else ctx.fillStyle = '#0b0f14';
+    ctx.fillRect(0,0,canvas.clientWidth,canvas.clientHeight);
+  }
+
+  function drawBoids(){
+    ctx.save(); ctx.translate(0.5,0.5);
+    for (const b of boids){
+      const ang = Math.atan2(b.v.y,b.v.x), x=b.p.x, y=b.p.y;
+      ctx.fillStyle = colors[b.group % colors.length] || '#fff';
+      ctx.beginPath();
+      const L=10, Wt=6, cos=Math.cos(ang), sin=Math.sin(ang);
+      const tipX=x+cos*L, tipY=y+sin*L;
+      const leftX=x-cos*6 - sin*(Wt/2), leftY=y-sin*6 + cos*(Wt/2);
+      const rightX=x-cos*6 + sin*(Wt/2), rightY=y-sin*6 - cos*(Wt/2);
+      ctx.moveTo(tipX,tipY); ctx.lineTo(leftX,leftY); ctx.lineTo(rightX,rightY); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawObstacles(){
+    ctx.save();
+    for(const o of obstacles){
+      ctx.beginPath();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      if (o.type==='circle'){
+        ctx.arc(o.x, o.y, o.r, 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+
+        // 膨脹距指示
+        ctx.beginPath();
+        ctx.setLineDash([6,6]);
+        ctx.arc(o.x,o.y,o.r+params.inflate,0,Math.PI*2);
+        ctx.strokeStyle='rgba(118,227,161,0.35)';
+        ctx.stroke(); ctx.setLineDash([]);
+      } else if (o.type==='box'){
+        const x=o.x, y=o.y, w=o.hx*2, h=o.hy*2;
+        ctx.rect(x-o.hx, y-o.hy, w, h);
+        ctx.fill(); ctx.stroke();
+
+        // 膨脹距指示（外框）
+        ctx.beginPath();
+        ctx.setLineDash([6,6]);
+        ctx.rect(x-o.hx-params.inflate, y-o.hy-params.inflate, w+params.inflate*2, h+params.inflate*2);
+        ctx.strokeStyle='rgba(118,227,161,0.35)';
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    ctx.restore();
+  }
+
+  // ===== Main Loop & Stats =====
+  let last = performance.now(), fpsAcc=0, fpsCnt=0, fpsDisp='--';
+  function tick(now){
+    if (running){ update(); clearScreen(); drawObstacles(); drawBoids(); }
+    const dt = now-last; last=now; const fps = 1000/(dt||1);
+    fpsAcc+=fps; fpsCnt++; if (fpsCnt>=12){ fpsDisp=(fpsAcc/fpsCnt).toFixed(1); fpsAcc=0; fpsCnt=0; }
+    elStats.textContent = `FPS: ${fpsDisp}｜個體: ${boids.length}｜群: ${colors.length}｜障礙: ${obstacles.length}`;
+    requestAnimationFrame(tick);
+  }
+
+  // ===== Buttons =====
+  elApply.addEventListener('click', applySettings);
+  elReset.addEventListener('click', resetSim);
+  elRandom.addEventListener('click', randomizeGroups);
+  elToggle.addEventListener('click', ()=>{ running=!running; elToggle.textContent = running?'暫停':'開始'; });
+  elTrail.addEventListener('click', ()=>{ trails=!trails; elTrail.textContent = `軌跡：${trails?'開':'關'}`; });
+
+  // ===== Init =====
+  resize(); applySettings(); clearScreen(true); requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
