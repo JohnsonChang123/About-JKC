@@ -1,2 +1,2 @@
 # About-JKC
-resume
+resume:https://johnsonchang123.github.io/About-JKC/
