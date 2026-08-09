@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#f5f5f7">
+<title>Cube Orbit</title>
+<style>
+  :root{
+    --bg:#f5f5f7;
+    --surface:rgba(255,255,255,.78);
+    --surface-strong:#ffffff;
+    --line:rgba(60,60,67,.14);
+    --text:#1d1d1f;
+    --muted:#6e6e73;
+    --blue:#0a84ff;
+    --red:#ff453a;
+    --green:#30d158;
+    --shadow:0 10px 34px rgba(0,0,0,.07);
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+
+  html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text",
+      "PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+  }
+
+  button{font:inherit}
+
+  .app{
+    height:100dvh;
+    min-height:480px;
+    padding:
+      max(10px,env(safe-area-inset-top))
+      10px
+      max(10px,env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+
+  .workspace{
+    min-height:0;
+    flex:1 1 auto;
+    display:grid;
+    grid-template-columns:minmax(0,.46fr) minmax(0,.54fr);
+    gap:8px;
+  }
+
+  .panel{
+    min-width:0;
+    min-height:0;
+    position:relative;
+    overflow:hidden;
+    border:1px solid var(--line);
+    border-radius:26px;
+    background:rgba(255,255,255,.62);
+    box-shadow:var(--shadow);
+  }
+
+  .orbit-panel{
+    background:rgba(255,255,255,.88);
+  }
+
+  .cube-panel{
+    background:
+      radial-gradient(circle at 50% 42%,rgba(255,255,255,.98),rgba(242,242,247,.93) 68%,rgba(232,232,237,.88));
+    touch-action:none;
+  }
+
+  #orbitSvg,#threeHost,#threeHost canvas{
+    width:100%;
+    height:100%;
+    display:block;
+  }
+
+  #orbitSvg{
+    touch-action:none;
+    pointer-events:none;
+  }
+
+  #threeHost{
+    position:absolute;
+    inset:0;
+    touch-action:none;
+  }
+
+  #threeHost canvas{
+    outline:none;
+    touch-action:none;
+  }
+
+  .track{
+    fill:none;
+    stroke-width:1.55;
+    vector-effect:non-scaling-stroke;
+    transition:opacity .16s ease,stroke-width .16s ease;
+  }
+  .track.blue{stroke:var(--blue)}
+  .track.red{stroke:var(--red)}
+  .track.green{stroke:var(--green)}
+  .track.dim{opacity:.18}
+  .track.hot{opacity:.92;stroke-width:2.35}
+
+  .sticker-dot{
+    stroke:rgba(0,0,0,.35);
+    stroke-width:1.1;
+    vector-effect:non-scaling-stroke;
+  }
+
+  .instruction{
+    position:absolute;
+    left:50%;
+    bottom:16px;
+    transform:translateX(-50%);
+    width:max-content;
+    max-width:calc(100% - 24px);
+    padding:9px 13px;
+    border-radius:999px;
+    background:rgba(255,255,255,.78);
+    border:1px solid rgba(60,60,67,.12);
+    box-shadow:0 8px 24px rgba(0,0,0,.07);
+    backdrop-filter:blur(18px) saturate(180%);
+    -webkit-backdrop-filter:blur(18px) saturate(180%);
+    color:var(--muted);
+    font-size:12px;
+    letter-spacing:.01em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    opacity:1;
+    transition:opacity .45s ease,transform .45s ease;
+    pointer-events:none;
+  }
+
+  .instruction.hide{
+    opacity:0;
+    transform:translate(-50%,8px);
+  }
+
+  .loading{
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    padding:24px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    pointer-events:none;
+  }
+
+  .loading.hide{display:none}
+
+  .toolbar{
+    flex:0 0 auto;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    padding:0 2px;
+  }
+
+  .tool-btn{
+    appearance:none;
+    min-height:54px;
+    border:1px solid var(--line);
+    border-radius:18px;
+    background:rgba(255,255,255,.82);
+    color:var(--text);
+    box-shadow:0 6px 22px rgba(0,0,0,.05);
+    backdrop-filter:blur(18px) saturate(180%);
+    -webkit-backdrop-filter:blur(18px) saturate(180%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    touch-action:manipulation;
+    transition:transform .08s ease,background .15s ease,opacity .15s ease;
+  }
+
+  .tool-btn:active{
+    transform:scale(.975);
+    background:rgba(235,235,240,.92);
+  }
+
+  .tool-btn:disabled{
+    opacity:.42;
+    cursor:default;
+    transform:none;
+  }
+
+  .tool-btn svg{
+    width:19px;
+    height:19px;
+    stroke:currentColor;
+    fill:none;
+    stroke-width:1.9;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .tool-btn.primary{
+    background:#1d1d1f;
+    color:#fff;
+    border-color:#1d1d1f;
+  }
+
+  .tool-btn.primary:active{
+    background:#3a3a3c;
+  }
+
+  .status-pill{
+    position:absolute;
+    top:12px;
+    left:50%;
+    transform:translateX(-50%) translateY(-4px);
+    padding:6px 10px;
+    border-radius:999px;
+    background:rgba(29,29,31,.80);
+    color:#fff;
+    font-size:12px;
+    font-weight:600;
+    letter-spacing:.02em;
+    opacity:0;
+    transition:opacity .15s ease,transform .15s ease;
+    pointer-events:none;
+    white-space:nowrap;
+  }
+
+  .status-pill.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  @media (max-width:560px){
+    .app{padding-left:6px;padding-right:6px;gap:7px}
+    .workspace{gap:6px;grid-template-columns:minmax(0,.44fr) minmax(0,.56fr)}
+    .panel{border-radius:21px}
+    .toolbar{gap:6px;padding:0}
+    .tool-btn{min-height:50px;border-radius:16px;font-size:14px}
+    .instruction{font-size:11px;bottom:10px;padding:8px 10px}
+  }
+
+  @media (max-height:560px){
+    .tool-btn{min-height:44px}
+    .instruction{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="workspace">
+    <section class="panel orbit-panel" aria-label="二維同心圓動畫">
+      <svg id="orbitSvg" viewBox="0 0 520 720" preserveAspectRatio="xMidYMid meet" aria-hidden="true"></svg>
+    </section>
+
+    <section class="panel cube-panel" id="cubePanel" aria-label="可操作的三維魔術方塊">
+      <div id="threeHost"></div>
+      <div class="loading" id="loading">正在載入 3D</div>
+      <div class="status-pill" id="statusPill"></div>
+      <div class="instruction" id="instruction">滑動色塊轉層 · 滑動空白旋轉視角</div>
+    </section>
+  </main>
+
+  <nav class="toolbar" aria-label="魔術方塊控制">
+    <button class="tool-btn" id="undoBtn" type="button" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M9 7 4 12l5 5"/>
+        <path d="M5 12h8a6 6 0 1 1 0 12"/>
+      </svg>
+      <span>復原</span>
+    </button>
+
+    <button class="tool-btn primary" id="scrambleBtn" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M16 3h5v5"/>
+        <path d="M4 20 21 3"/>
+        <path d="M15 16l6 5"/>
+        <path d="M21 16v5h-5"/>
+        <path d="M4 4l5 5"/>
+      </svg>
+      <span>隨機打亂</span>
+    </button>
+  </nav>
+</div>
+
+<script type="module">
+(async()=>{
+  const THREE_URL='https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
+
+  const orbitSvg=document.getElementById('orbitSvg');
+  const host=document.getElementById('threeHost');
+  const panel=document.getElementById('cubePanel');
+  const loading=document.getElementById('loading');
+  const instruction=document.getElementById('instruction');
+  const statusPill=document.getElementById('statusPill');
+  const undoBtn=document.getElementById('undoBtn');
+  const scrambleBtn=document.getElementById('scrambleBtn');
+
+  const NS='http://www.w3.org/2000/svg';
+  const FACE_COLOR={
+    U:'#ffd60a',
+    D:'#ffffff',
+    F:'#30d158',
+    B:'#0a5cff',
+    R:'#ff3b30',
+    L:'#ff9f0a'
+  };
+  const AXIS_CLASS={x:'red',y:'green',z:'blue'};
+  const FACE_CENTER={
+    U:[92,244],
+    F:[258,278],
+    R:[427,244],
+    L:[204,410],
+    D:[322,410],
+    B:[262,585]
+  };
+  const DOT_SPACING=14.2;
+  const DOT_R=6.3;
+
+  const stickers=[];
+  const stickerEls=new Map();
+  let preview=null;
+
+  const v=(x,y,z)=>({x,y,z});
+  const cloneV=p=>({x:p.x,y:p.y,z:p.z});
+
+  function addSticker(face,pos,normal){
+    const id=`${face}${stickers.length}`;
+    stickers.push({id,face,color:FACE_COLOR[face],pos:cloneV(pos),normal:cloneV(normal)});
+  }
+
+  for(let y=1;y>=-1;y--){
+    for(let x=-1;x<=1;x++) addSticker('F',v(x,y,1),v(0,0,1));
+    for(let x=1;x>=-1;x--) addSticker('B',v(x,y,-1),v(0,0,-1));
+  }
+  for(let z=1;z>=-1;z--){
+    for(let x=-1;x<=1;x++) addSticker('U',v(x,1,z),v(0,1,0));
+    for(let x=-1;x<=1;x++) addSticker('D',v(x,-1,-z),v(0,-1,0));
+  }
+  for(let y=1;y>=-1;y--){
+    for(let z=1;z>=-1;z--) addSticker('R',v(1,y,z),v(1,0,0));
+    for(let z=-1;z<=1;z++) addSticker('L',v(-1,y,z),v(-1,0,0));
+  }
+
+  function svgEl(tag,attrs,parent=orbitSvg){
+    const el=document.createElementNS(NS,tag);
+    for(const [k,val] of Object.entries(attrs||{})) el.setAttribute(k,val);
+    parent.appendChild(el);
+    return el;
+  }
+
+  function buildOrbit(){
+    orbitSvg.innerHTML='';
+    const tracks=svgEl('g',{id:'tracks'});
+    const groups=[
+      {cls:'blue',cx:260,cy:188,rs:[150,171,192]},
+      {cls:'red',cx:176,cy:403,rs:[142,163,184]},
+      {cls:'green',cx:344,cy:403,rs:[142,163,184]}
+    ];
+    groups.forEach(g=>{
+      g.rs.forEach(r=>{
+        svgEl('circle',{cx:g.cx,cy:g.cy,r,class:`track ${g.cls}`},tracks);
+      });
+    });
+
+    const dots=svgEl('g',{id:'dots'});
+    stickers.forEach(s=>{
+      const p=stickerScreen(s);
+      const el=svgEl('circle',{
+        id:`dot-${s.id}`,
+        cx:p.x,cy:p.y,r:DOT_R,
+        fill:s.color,class:'sticker-dot'
+      },dots);
+      stickerEls.set(s.id,el);
+    });
+  }
+
+  function faceFromNormal(n){
+    if(n.y===1) return 'U';
+    if(n.y===-1) return 'D';
+    if(n.z===1) return 'F';
+    if(n.z===-1) return 'B';
+    if(n.x===1) return 'R';
+    return 'L';
+  }
+
+  function faceRowCol(face,p){
+    switch(face){
+      case 'F': return [1-p.y,p.x+1];
+      case 'B': return [1-p.y,1-p.x];
+      case 'R': return [1-p.y,1-p.z];
+      case 'L': return [1-p.y,p.z+1];
+      case 'U': return [p.z+1,p.x+1];
+      case 'D': return [1-p.z,p.x+1];
+    }
+  }
+
+  function stickerScreen(s){
+    const face=faceFromNormal(s.normal);
+    const [row,col]=faceRowCol(face,s.pos);
+    const [cx,cy]=FACE_CENTER[face];
+    return {
+      x:cx+(col-1)*DOT_SPACING,
+      y:cy+(row-1)*DOT_SPACING
+    };
+  }
+
+  function rotateInt(p,axis,dir){
+    const {x,y,z}=p;
+    if(axis==='x'){
+      return dir>0 ? v(x,-z,y) : v(x,z,-y);
+    }
+    if(axis==='y'){
+      return dir>0 ? v(z,y,-x) : v(-z,y,x);
+    }
+    return dir>0 ? v(-y,x,z) : v(y,-x,z);
+  }
+
+  function axisValue(p,axis){return p[axis]}
+
+  function computePreview(move){
+    const out=new Map();
+    stickers.forEach(s=>{
+      const from=stickerScreen(s);
+      let to=from;
+      if(axisValue(s.pos,move.axis)===move.layer){
+        const temp={
+          pos:rotateInt(s.pos,move.axis,move.dir),
+          normal:rotateInt(s.normal,move.axis,move.dir)
+        };
+        to=stickerScreen(temp);
+      }
+      out.set(s.id,{from,to,moving:from.x!==to.x||from.y!==to.y});
+    });
+    return {move,items:out};
+  }
+
+  function curvePoint(a,b,t,axis){
+    if(a.x===b.x&&a.y===b.y) return a;
+    const mx=(a.x+b.x)/2;
+    const my=(a.y+b.y)/2;
+    let dx=b.x-a.x,dy=b.y-a.y;
+    const len=Math.hypot(dx,dy)||1;
+    dx/=len;dy/=len;
+    const nx=-dy,ny=dx;
+    const bend=(axis==='y'?28:axis==='x'?36:32);
+    const qx=mx+nx*bend;
+    const qy=my+ny*bend;
+    const u=1-t;
+    return {
+      x:u*u*a.x+2*u*t*qx+t*t*b.x,
+      y:u*u*a.y+2*u*t*qy+t*t*b.y
+    };
+  }
+
+  function setTrackFocus(axis=null){
+    document.querySelectorAll('.track').forEach(el=>{
+      el.classList.remove('dim','hot');
+      if(!axis) return;
+      if(el.classList.contains(AXIS_CLASS[axis])) el.classList.add('hot');
+      else el.classList.add('dim');
+    });
+  }
+
+  function render2DPreview(move,t){
+    if(!preview || preview.move.axis!==move.axis || preview.move.layer!==move.layer || preview.move.dir!==move.dir){
+      preview=computePreview(move);
+    }
+    const tt=Math.max(0,Math.min(1,t));
+    preview.items.forEach((d,id)=>{
+      const p=curvePoint(d.from,d.to,tt,move.axis);
+      const el=stickerEls.get(id);
+      el.setAttribute('cx',p.x);
+      el.setAttribute('cy',p.y);
+      if(d.moving){
+        const pulse=1+Math.sin(Math.PI*tt)*.18;
+        el.setAttribute('r',DOT_R*pulse);
+      }else{
+        el.setAttribute('r',DOT_R);
+      }
+    });
+    setTrackFocus(move.axis);
+  }
+
+  function render2DInstant(){
+    stickers.forEach(s=>{
+      const p=stickerScreen(s);
+      const el=stickerEls.get(s.id);
+      el.setAttribute('cx',p.x);
+      el.setAttribute('cy',p.y);
+      el.setAttribute('r',DOT_R);
+    });
+    preview=null;
+    setTrackFocus(null);
+  }
+
+  function commitStickerMove(move){
+    stickers.forEach(s=>{
+      if(axisValue(s.pos,move.axis)!==move.layer) return;
+      s.pos=rotateInt(s.pos,move.axis,move.dir);
+      s.normal=rotateInt(s.normal,move.axis,move.dir);
+    });
+    preview=null;
+    render2DInstant();
+  }
+
+  buildOrbit();
+
+  let THREE;
+  try{
+    THREE=await import(THREE_URL);
+  }catch(err){
+    loading.textContent='3D 模組載入失敗，請確認網路連線';
+    scrambleBtn.disabled=true;
+    undoBtn.disabled=true;
+    return;
+  }
+
+  loading.classList.add('hide');
+
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(37,1,.1,100);
+  const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+  renderer.setClearColor(0x000000,0);
+  renderer.outputColorSpace=THREE.SRGBColorSpace;
+  host.appendChild(renderer.domElement);
+
+  const cubeBase=new THREE.Group();
+  scene.add(cubeBase);
+
+  const hemi=new THREE.HemisphereLight(0xffffff,0xb7bac0,2.4);
+  scene.add(hemi);
+  const key=new THREE.DirectionalLight(0xffffff,2.9);
+  key.position.set(5,7,8);
+  scene.add(key);
+  const fill=new THREE.DirectionalLight(0xffffff,1.3);
+  fill.position.set(-6,-2,4);
+  scene.add(fill);
+
+  const plastic=0x17171a;
+  const materialCache=new Map();
+
+  function material(color){
+    const key=String(color);
+    if(!materialCache.has(key)){
+      materialCache.set(key,new THREE.MeshStandardMaterial({
+        color,
+        roughness:.58,
+        metalness:.02
+      }));
+    }
+    return materialCache.get(key);
+  }
+
+  const MAT={
+    dark:material(plastic),
+    U:material(0xffd60a),
+    D:material(0xffffff),
+    F:material(0x30d158),
+    B:material(0x0a5cff),
+    R:material(0xff3b30),
+    L:material(0xff9f0a)
+  };
+
+  const cubelets=[];
+  const geometry=new THREE.BoxGeometry(.92,.92,.92);
+
+  for(let x=-1;x<=1;x++){
+    for(let y=-1;y<=1;y++){
+      for(let z=-1;z<=1;z++){
+        const mats=[
+          x===1?MAT.R:MAT.dark,
+          x===-1?MAT.L:MAT.dark,
+          y===1?MAT.U:MAT.dark,
+          y===-1?MAT.D:MAT.dark,
+          z===1?MAT.F:MAT.dark,
+          z===-1?MAT.B:MAT.dark
+        ];
+        const mesh=new THREE.Mesh(geometry,mats);
+        mesh.position.set(x,y,z);
+        mesh.userData.coord={x,y,z};
+        mesh.userData.isCubie=true;
+        cubeBase.add(mesh);
+        cubelets.push(mesh);
+      }
+    }
+  }
+
+  // 淡淡的接地陰影，不影響觸控判斷。
+  const shadowGeo=new THREE.CircleGeometry(2.25,64);
+  const shadowMat=new THREE.MeshBasicMaterial({
+    color:0x000000,transparent:true,opacity:.075,depthWrite:false
+  });
+  const shadow=new THREE.Mesh(shadowGeo,shadowMat);
+  shadow.rotation.x=-Math.PI/2;
+  shadow.position.y=-1.78;
+  shadow.scale.y=.34;
+  scene.add(shadow);
+
+  let yaw=.72;
+  let pitch=.48;
+  let distance=7.5;
+
+  function updateCamera(){
+    const cp=Math.cos(pitch);
+    camera.position.set(
+      distance*Math.sin(yaw)*cp,
+      distance*Math.sin(pitch),
+      distance*Math.cos(yaw)*cp
+    );
+    camera.lookAt(0,0,0);
+  }
+  updateCamera();
+
+  function resize(){
+    const r=host.getBoundingClientRect();
+    if(!r.width||!r.height) return;
+    renderer.setSize(r.width,r.height,false);
+    camera.aspect=r.width/r.height;
+    camera.updateProjectionMatrix();
+  }
+  new ResizeObserver(resize).observe(host);
+  resize();
+
+  const raycaster=new THREE.Raycaster();
+  const ndc=new THREE.Vector2();
+  const worldAxis={
+    x:new THREE.Vector3(1,0,0),
+    y:new THREE.Vector3(0,1,0),
+    z:new THREE.Vector3(0,0,1)
+  };
+
+  const history=[];
+  let busy=false;
+  let currentPivot=null;
+  let gesture=null;
+  const pointers=new Map();
+  let pinch=null;
+  let toastTimer=null;
+
+  function setButtons(){
+    undoBtn.disabled=busy||history.length===0;
+    scrambleBtn.disabled=busy;
+  }
+
+  function showStatus(text,ms=550){
+    statusPill.textContent=text;
+    statusPill.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer=setTimeout(()=>statusPill.classList.remove('show'),ms);
+  }
+
+  function moveLabel(move){
+    const {axis,layer,dir}=move;
+    if(layer===0){
+      return axis==='x'?(dir>0?'M+':'M−'):
+             axis==='y'?(dir>0?'E+':'E−'):(dir>0?'S+':'S−');
+    }
+    const face=axis==='x'?(layer>0?'R':'L'):
+               axis==='y'?(layer>0?'U':'D'):(layer>0?'F':'B');
+    return `${face}${dir<0?'′':''}`;
+  }
+
+  function pointerToNDC(clientX,clientY){
+    const r=renderer.domElement.getBoundingClientRect();
+    ndc.x=((clientX-r.left)/r.width)*2-1;
+    ndc.y=-((clientY-r.top)/r.height)*2+1;
+    return ndc;
+  }
+
+  function pick(clientX,clientY){
+    raycaster.setFromCamera(pointerToNDC(clientX,clientY),camera);
+    const hits=raycaster.intersectObjects(cubelets,false);
+    if(!hits.length) return null;
+    const hit=hits[0];
+    const normal=hit.face.normal.clone().transformDirection(hit.object.matrixWorld);
+    return {
+      cubie:hit.object,
+      point:hit.point.clone(),
+      normal
+    };
+  }
+
+  function projectScreen(point){
+    const p=point.clone().project(camera);
+    const r=renderer.domElement.getBoundingClientRect();
+    return {
+      x:(p.x*.5+.5)*r.width,
+      y:(-p.y*.5+.5)*r.height
+    };
+  }
+
+  function chooseLayerAxis(g,dx,dy){
+    const dn=Math.hypot(dx,dy);
+    if(dn<1) return null;
+    const d={x:dx/dn,y:dy/dn};
+    const candidates=['x','y','z'].filter(a=>Math.abs(g.hit.normal.dot(worldAxis[a]))<.72);
+    let best=null;
+    for(const axis of candidates){
+      const radial=g.hit.point.clone();
+      const tangent=new THREE.Vector3().crossVectors(worldAxis[axis],radial);
+      if(tangent.lengthSq()<.03) continue;
+      tangent.normalize().multiplyScalar(.72);
+      const s0=projectScreen(g.hit.point);
+      const s1=projectScreen(g.hit.point.clone().add(tangent));
+      let sx=s1.x-s0.x,sy=s1.y-s0.y;
+      const sl=Math.hypot(sx,sy);
+      if(sl<2) continue;
+      sx/=sl;sy/=sl;
+      const score=Math.abs(d.x*sx+d.y*sy);
+      if(!best||score>best.score){
+        best={axis,screen:{x:sx,y:sy},score};
+      }
+    }
+    return best;
+  }
+
+  function cubiesForLayer(axis,layer){
+    return cubelets.filter(c=>c.userData.coord[axis]===layer);
+  }
+
+  function beginPivot(move){
+    const pivot=new THREE.Group();
+    cubeBase.add(pivot);
+    cubiesForLayer(move.axis,move.layer).forEach(c=>pivot.attach(c));
+    currentPivot=pivot;
+    return pivot;
+  }
+
+  function setPivotAngle(axis,angle){
+    if(!currentPivot) return;
+    currentPivot.rotation.set(0,0,0);
+    currentPivot.rotation[axis]=angle;
+  }
+
+  function finishPivot(move,committed){
+    if(!currentPivot) return;
+    const members=[...currentPivot.children];
+    members.forEach(c=>cubeBase.attach(c));
+    cubeBase.remove(currentPivot);
+    currentPivot=null;
+
+    if(committed){
+      members.forEach(c=>{
+        const old=c.userData.coord;
+        const next=rotateInt(old,move.axis,move.dir);
+        c.userData.coord=next;
+        c.position.set(next.x,next.y,next.z);
+        c.quaternion.normalize();
+      });
+      commitStickerMove(move);
+    }else{
+      members.forEach(c=>{
+        const p=c.userData.coord;
+        c.position.set(p.x,p.y,p.z);
+      });
+      render2DInstant();
+    }
+  }
+
+  function easeOutCubic(t){return 1-Math.pow(1-t,3)}
+
+  function animatePivotTo(move,fromAngle,toAngle,duration,{record=false}={}){
+    return new Promise(resolve=>{
+      busy=true;
+      setButtons();
+
+      if(!currentPivot) beginPivot(move);
+      const start=performance.now();
+
+      function frame(now){
+        const raw=Math.min(1,(now-start)/duration);
+        const e=easeOutCubic(raw);
+        const angle=fromAngle+(toAngle-fromAngle)*e;
+        setPivotAngle(move.axis,angle);
+
+        if(toAngle===0){
+          const frac=Math.abs(angle)/(Math.PI/2);
+          render2DPreview(move,frac);
+        }else{
+          const frac=Math.abs(angle)/(Math.PI/2);
+          render2DPreview(move,frac);
+        }
+
+        if(raw<1){
+          requestAnimationFrame(frame);
+        }else{
+          const committed=Math.abs(toAngle)>.001;
+          finishPivot(move,committed);
+          if(committed&&record) history.push({...move});
+          busy=false;
+          setButtons();
+          resolve(committed);
+        }
+      }
+      requestAnimationFrame(frame);
+    });
+  }
+
+  async function executeMove(move,{record=true,duration=260,announce=true}={}){
+    if(busy) return false;
+    beginPivot(move);
+    if(announce) showStatus(moveLabel(move));
+    return animatePivotTo(move,0,move.dir*Math.PI/2,duration,{record});
+  }
+
+  function randomScramble(count=20){
+    const moves=[];
+    let prevAxis=null,prevLayer=null;
+    const axes=['x','y','z'];
+    for(let i=0;i<count;i++){
+      let axis,layer;
+      do{
+        axis=axes[Math.floor(Math.random()*3)];
+        layer=Math.random()<.5?-1:1;
+      }while(axis===prevAxis&&layer===prevLayer);
+      const dir=Math.random()<.5?-1:1;
+      moves.push({axis,layer,dir});
+      prevAxis=axis;prevLayer=layer;
+    }
+    return moves;
+  }
+
+  async function scramble(){
+    if(busy) return;
+    busy=true;
+    setButtons();
+    const seq=randomScramble(20);
+    showStatus('打亂中',1800);
+
+    for(const move of seq){
+      // executeMove 內部會控制 busy，因此在每步前暫時釋放。
+      busy=false;
+      await executeMove(move,{record:true,duration:105,announce:false});
+    }
+    busy=false;
+    setButtons();
+    showStatus('完成');
+  }
+
+  async function undo(){
+    if(busy||!history.length) return;
+    const last=history.pop();
+    setButtons();
+    const inv={axis:last.axis,layer:last.layer,dir:-last.dir};
+    await executeMove(inv,{record:false,duration:230,announce:true});
+    setButtons();
+  }
+
+  undoBtn.addEventListener('click',undo);
+  scrambleBtn.addEventListener('click',scramble);
+
+  function startLayerGesture(ev,hit){
+    gesture={
+      mode:'layer-pending',
+      pointerId:ev.pointerId,
+      startX:ev.clientX,
+      startY:ev.clientY,
+      lastX:ev.clientX,
+      lastY:ev.clientY,
+      hit,
+      axis:null,
+      layer:null,
+      tangent:null,
+      angle:0,
+      previewDir:1
+    };
+  }
+
+  function cancelLayerGesture(){
+    if(!gesture) return;
+    if(currentPivot){
+      const g=gesture;
+      const move={axis:g.axis,layer:g.layer,dir:g.previewDir||1};
+      setPivotAngle(g.axis,0);
+      finishPivot(move,false);
+    }
+    gesture=null;
+  }
+
+  function onPointerDown(ev){
+    if(busy) return;
+    renderer.domElement.setPointerCapture(ev.pointerId);
+    pointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+
+    if(pointers.size===2 && gesture?.mode==='camera'){
+      const pts=[...pointers.values()];
+      pinch={
+        dist:Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y),
+        startDistance:distance
+      };
+      gesture.mode='pinch';
+      return;
+    }
+
+    if(pointers.size>1) return;
+
+    const hit=pick(ev.clientX,ev.clientY);
+    if(hit){
+      startLayerGesture(ev,hit);
+    }else{
+      gesture={
+        mode:'camera',
+        pointerId:ev.pointerId,
+        startX:ev.clientX,
+        startY:ev.clientY,
+        startYaw:yaw,
+        startPitch:pitch
+      };
+    }
+  }
+
+  function onPointerMove(ev){
+    if(!pointers.has(ev.pointerId)) return;
+    pointers.set(ev.pointerId,{x:ev.clientX,y:ev.clientY});
+
+    if(gesture?.mode==='pinch' && pointers.size>=2){
+      const pts=[...pointers.values()];
+      const d=Math.hypot(pts[0].x-pts[1].x,pts[0].y-pts[1].y);
+      if(pinch&&d>1){
+        distance=Math.max(5.2,Math.min(10.5,pinch.startDistance*(pinch.dist/d)));
+        updateCamera();
+      }
+      return;
+    }
+
+    if(!gesture||gesture.pointerId!==ev.pointerId) return;
+
+    if(gesture.mode==='camera'){
+      const dx=ev.clientX-gesture.startX;
+      const dy=ev.clientY-gesture.startY;
+      yaw=gesture.startYaw-dx*.0082;
+      pitch=Math.max(-1.05,Math.min(1.05,gesture.startPitch+dy*.0074));
+      updateCamera();
+      return;
+    }
+
+    if(gesture.mode==='layer-pending'){
+      const dx=ev.clientX-gesture.startX;
+      const dy=ev.clientY-gesture.startY;
+      if(Math.hypot(dx,dy)<9) return;
+
+      const choice=chooseLayerAxis(gesture,dx,dy);
+      if(!choice) return;
+
+      gesture.axis=choice.axis;
+      gesture.tangent=choice.screen;
+      gesture.layer=gesture.hit.cubie.userData.coord[choice.axis];
+      gesture.mode='layer';
+      gesture.previewDir=1;
+      beginPivot({axis:gesture.axis,layer:gesture.layer,dir:1});
+      setTrackFocus(gesture.axis);
+    }
+
+    if(gesture.mode==='layer'){
+      const dx=ev.clientX-gesture.startX;
+      const dy=ev.clientY-gesture.startY;
+      const along=dx*gesture.tangent.x+dy*gesture.tangent.y;
+      const angle=Math.max(-Math.PI/2,Math.min(Math.PI/2,along*(Math.PI/2/112)));
+      gesture.angle=angle;
+      gesture.previewDir=angle<0?-1:1;
+
+      setPivotAngle(gesture.axis,angle);
+      const move={axis:gesture.axis,layer:gesture.layer,dir:gesture.previewDir};
+      render2DPreview(move,Math.abs(angle)/(Math.PI/2));
+    }
+  }
+
+  async function onPointerUp(ev){
+    pointers.delete(ev.pointerId);
+
+    if(gesture?.mode==='pinch'){
+      if(pointers.size===0){
+        gesture=null;
+        pinch=null;
+      }else if(pointers.size===1){
+        const remaining=[...pointers.entries()][0];
+        gesture={
+          mode:'camera',
+          pointerId:remaining[0],
+          startX:remaining[1].x,
+          startY:remaining[1].y,
+          startYaw:yaw,
+          startPitch:pitch
+        };
+        pinch=null;
+      }
+      return;
+    }
+
+    if(!gesture||gesture.pointerId!==ev.pointerId) return;
+
+    if(gesture.mode==='camera'||gesture.mode==='layer-pending'){
+      gesture=null;
+      return;
+    }
+
+    if(gesture.mode==='layer'){
+      const g=gesture;
+      gesture=null;
+      const dir=g.angle<0?-1:1;
+      const move={axis:g.axis,layer:g.layer,dir};
+      const commit=Math.abs(g.angle)>=Math.PI/4;
+      const target=commit?dir*Math.PI/2:0;
+
+      if(commit) showStatus(moveLabel(move));
+      await animatePivotTo(move,g.angle,target,165,{record:commit});
+    }
+  }
+
+  function onPointerCancel(ev){
+    pointers.delete(ev.pointerId);
+    if(gesture&&gesture.pointerId===ev.pointerId){
+      cancelLayerGesture();
+    }
+  }
+
+  renderer.domElement.addEventListener('pointerdown',onPointerDown);
+  renderer.domElement.addEventListener('pointermove',onPointerMove);
+  renderer.domElement.addEventListener('pointerup',onPointerUp);
+  renderer.domElement.addEventListener('pointercancel',onPointerCancel);
+  renderer.domElement.addEventListener('contextmenu',e=>e.preventDefault());
+
+  renderer.domElement.addEventListener('wheel',ev=>{
+    ev.preventDefault();
+    distance=Math.max(5.2,Math.min(10.5,distance+ev.deltaY*.006));
+    updateCamera();
+  },{passive:false});
+
+  let last=performance.now();
+  function render(now){
+    const dt=Math.min(.05,(now-last)/1000);
+    last=now;
+    // 非操作時極微弱阻尼感：實際相機位置仍由 updateCamera 決定。
+    renderer.render(scene,camera);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  setButtons();
+
+  setTimeout(()=>instruction.classList.add('hide'),3600);
+  panel.addEventListener('pointerdown',()=>instruction.classList.add('hide'),{once:true});
+})();
+</script>
+</body>
+</html>
